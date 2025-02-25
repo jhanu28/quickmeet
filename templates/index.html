@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickMeet</title>
+    
+    <!-- Vue 3 -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.2.37/dist/vue.global.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: {} } };
+    </script>
+</head>
+<body class="bg-gray-100">
+    <div id="app" class="container mx-auto p-6">
+        <h1 class="text-3xl font-bold text-center text-gray-800">QuickMeet</h1>
+
+        <!-- Upload Section -->
+        <div class="bg-white shadow-md rounded-lg p-6 mt-6">
+            <h2 class="text-xl font-semibold text-gray-700">Upload Audio File</h2>
+            <input type="file" ref="fileInput" @change="handleFileUpload" accept="audio/*"
+                   class="mt-4 p-2 border rounded-lg w-full">
+            
+            <p v-if="uploadError" class="text-red-500 mt-2">{{ uploadError }}</p>
+            
+            <!-- Loading Indicator -->
+            <p v-if="isUploading" class="text-blue-500 mt-2">Uploading...</p>
+        </div>
+
+        <!-- Progress and Results -->
+        <div v-if="results" class="bg-white shadow-md rounded-lg p-6 mt-6">
+            <h2 class="text-xl font-semibold text-gray-700">Usage Summary</h2>
+
+            <!-- Transcription Progress -->
+            <div v-if="results.usage && results.usage.usage && results.usage.limits">
+                <p class="text-gray-600 mt-4">Transcription Minutes Used:
+                    <span class="font-semibold">{{ formatNumber(results.usage.usage.transcribe_minutes) }}</span> /
+                    <span class="font-semibold">{{ results.usage.limits.transcribe_minutes }}</span>
+                </p>
+                <div class="w-full bg-gray-200 rounded-lg h-4 mt-2">
+                    <div class="bg-blue-500 h-4 rounded-lg"
+                         :style="{ width: getProgress(results.usage.usage.transcribe_minutes, results.usage.limits.transcribe_minutes) }">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary -->
+            <div v-if="results.summary" class="mt-6">
+                <h2 class="text-xl font-semibold text-gray-700">Summary</h2>
+                <p class="bg-gray-100 p-4 rounded-lg">{{ results.summary }}</p>
+            </div>
+
+            <!-- Action Items -->
+            <div v-if="results.action_items && results.action_items.length" class="mt-6">
+                <h2 class="text-xl font-semibold text-gray-700">Action Items</h2>
+                <ul class="list-disc pl-6">
+                    <li v-for="(item, index) in results.action_items" :key="index">{{ item }}</li>
+                </ul>
+            </div>
+
+            <!-- Video Summary -->
+            <div v-if="results.video_url" class="mt-6">
+                <h2 class="text-xl font-semibold text-gray-700">Video Summary</h2>
+                <video v-if="results.video_url" :src="results.video_url" controls class="w-full h-auto rounded-lg mt-2"></video>
+                <p v-else class="text-gray-500">No video summary available.</p>
+            </div>
+        </div>
+
+        <!-- Search Section -->
+        <div class="bg-white shadow-md rounded-lg p-6 mt-6">
+            <h2 class="text-xl font-semibold text-gray-700">Search Meetings</h2>
+            <input type="text" v-model="searchQuery" placeholder="Search by keyword"
+                   class="w-full mt-2 p-2 border rounded-lg" @input="handleSearch">
+        </div>
+
+        <!-- Search Loading Indicator -->
+        <p v-if="isSearching" class="text-blue-500 mt-2">Searching...</p>
+
+        <!-- Search Results -->
+        <div v-if="searchResults.length > 0" class="bg-white shadow-md rounded-lg p-6 mt-6">
+            <h2 class="text-xl font-semibold text-gray-700">Search Results</h2>
+            <div v-for="result in searchResults" :key="result.id || result.fileName" class="p-4 border-b">
+                <p class="font-semibold">{{ result.fileName }}</p>
+                <p class="text-gray-600">{{ result.summary }}</p>
+            </div>
+        </div>
+
+        <!-- No Search Results Message -->
+        <div v-if="searchQuery.trim() && searchResults.length === 0 && !isSearching" class="text-gray-500 mt-4">
+            No results found for "{{ searchQuery }}".
+        </div>
+    </div>
+
+    <script>
+        const app = Vue.createApp({
+            data() {
+                return {
+                    results: null,
+                    searchQuery: "",
+                    searchResults: [],
+                    uploadError: "",
+                    isUploading: false,
+                    isSearching: false
+                };
+            },
+            methods: {
+                async handleFileUpload(event) {
+                    const file = event.target.files[0];
+                    if (!file) {
+                        this.uploadError = "Please select a file to upload.";
+                        return;
+                    }
+
+                    this.uploadError = "";
+                    this.isUploading = true;
+
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    try {
+                        const response = await fetch('/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || 'Upload failed');
+                        }
+
+                        this.results = await response.json();
+                        this.$refs.fileInput.value = ""; // Clear file input
+                    } catch (error) {
+                        console.error('Error:', error);
+                        this.uploadError = error.message || 'An error occurred while processing the file.';
+                    } finally {
+                        this.isUploading = false;
+                    }
+                },
+                async handleSearch() {
+                    if (!this.searchQuery.trim()) {
+                        this.searchResults = [];
+                        return;
+                    }
+
+                    this.isSearching = true;
+
+                    try {
+                        const response = await fetch(`/search?query=${encodeURIComponent(this.searchQuery)}`);
+                        if (!response.ok) throw new Error('Search failed');
+
+                        this.searchResults = await response.json();
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('An error occurred while searching.');
+                    } finally {
+                        this.isSearching = false;
+                    }
+                },
+                formatNumber(value) {
+                    return value ? value.toFixed(1) : '0.0';
+                },
+                getProgress(used, limit) {
+                    if (!used || !limit) return '0%';
+                    return `${(used / limit) * 100}%`;
+                }
+            }
+        });
+
+        app.mount('#app');
+    </script>
+</body>
+</html>

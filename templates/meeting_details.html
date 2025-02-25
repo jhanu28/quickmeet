@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-indigo-600 mb-6">Meeting Details</h1>
+
+    <!-- Summary Length Control -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4">Summary Length</h2>
+        <div class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
+            <button 
+                @click="updateSummaryLength('brief')" 
+                :class="{'bg-indigo-600 text-white': summaryLength === 'brief', 'bg-gray-100': summaryLength !== 'brief'}"
+                class="px-4 py-2 w-full md:w-auto rounded-lg focus:ring focus:ring-indigo-300"
+                aria-label="Set summary to brief">
+                Brief
+            </button>
+            <button 
+                @click="updateSummaryLength('standard')"
+                :class="{'bg-indigo-600 text-white': summaryLength === 'standard', 'bg-gray-100': summaryLength !== 'standard'}"
+                class="px-4 py-2 w-full md:w-auto rounded-lg focus:ring focus:ring-indigo-300"
+                aria-label="Set summary to standard">
+                Standard
+            </button>
+            <button 
+                @click="updateSummaryLength('detailed')"
+                :class="{'bg-indigo-600 text-white': summaryLength === 'detailed', 'bg-gray-100': summaryLength !== 'detailed'}"
+                class="px-4 py-2 w-full md:w-auto rounded-lg focus:ring focus:ring-indigo-300"
+                aria-label="Set summary to detailed">
+                Detailed
+            </button>
+        </div>
+    </div>
+
+    <!-- Meeting Summary -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4">Meeting Summary</h2>
+        <div class="prose max-w-none">
+            {{ meeting.summary | safe }}
+        </div>
+    </div>
+
+    <!-- Topics -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4">Key Topics</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for topic in meeting.topics %}
+            <div class="bg-gray-50 p-4 rounded-lg shadow">
+                <h3 class="font-semibold text-indigo-600">{{ topic.text }}</h3>
+                <p class="text-sm text-gray-600">Mentioned {{ topic.count }} times</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Sentiment Analysis -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4">Sentiment Analysis</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h3 class="font-semibold mb-2">Overall Sentiment</h3>
+                <div class="bg-gray-50 p-4 rounded-lg shadow">
+                    <p class="text-lg font-medium">{{ meeting.sentiment.sentiment }}</p>
+                    <p class="text-sm text-gray-600">Confidence: {{ "%.2f"|format(meeting.sentiment.confidence * 100) }}%</p>
+                </div>
+            </div>
+            <div>
+                <h3 class="font-semibold mb-2">Sentiment Distribution</h3>
+                <div class="space-y-2">
+                    {% for sentiment, value in meeting.sentiment.distribution.items() %}
+                    <div>
+                        <div class="flex justify-between text-sm">
+                            <span>{{ sentiment }}</span>
+                            <span>{{ "%.1f"|format(value * 100) }}%</span>
+                        </div>
+                        <div class="h-2 bg-gray-200 rounded">
+                            <div class="h-2 bg-indigo-600 rounded" style="width: {{ value * 100 }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transcript with Speaker Labels -->
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <h2 class="text-xl font-semibold mb-4">Transcript</h2>
+        <div class="space-y-4">
+            {% for segment in meeting.transcript %}
+            <div class="bg-gray-50 p-4 rounded-lg shadow">
+                <div class="flex items-start space-x-4">
+                    <div class="flex-shrink-0">
+                        <span class="inline-block px-2 py-1 bg-indigo-100 text-indigo-700 rounded">
+                            {{ segment.speaker }}
+                        </span>
+                    </div>
+                    <div class="flex-grow">
+                        <p>{{ segment.text }}</p>
+                        <p class="text-sm text-gray-500 mt-1">{{ segment.sentiment }}</p>
+                    </div>
+                    <div class="flex-shrink-0 text-sm text-gray-500">
+                        {{ segment.timestamp }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
