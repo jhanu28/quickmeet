@@ -1,0 +1,16 @@
+# Ignore virtual environment
+venv/
+
+# Ignore environment variables
+.env
+
+# Ignore compiled Python files
+__pycache__/
+
+# Ignore temporary files
+*.mp4
+*.mp3
+*.json
+*.txt
+*.pdf
+*.pptx
